@@ -11,6 +11,13 @@ const app=express();
 app.use(helmet());
 app.use(cors({origin:process.env.CLIENT_ORIGIN?.split(',')||'http://localhost:5173'}));
 app.use(express.json({limit:'100kb'}));
+let connectionPromise;
+app.use('/api',async(req,res,next)=>{
+ if(!process.env.MONGODB_URI)return res.status(503).json({error:'MONGODB_URI not configured'});
+ if(mongoose.connection.readyState===1)return next();
+ try{connectionPromise??=mongoose.connect(process.env.MONGODB_URI).catch(e=>{connectionPromise=undefined;throw e});await connectionPromise;next()}
+ catch(e){console.error('MongoDB connection failed',e.message);res.status(503).json({error:'Database unavailable'})}
+});
 app.use('/api',rateLimit({windowMs:15*60*1000,limit:300,standardHeaders:'draft-7',legacyHeaders:false}));
 const safe=(handler)=>(req,res,next)=>Promise.resolve(handler(req,res,next)).catch(next);
 const idOk=id=>mongoose.isValidObjectId(id);
@@ -57,6 +64,9 @@ app.use((err,_req,res,_next)=>{
  if(err.code===11000)return res.status(409).json({error:'A candidate with this email already exists'});
  console.error(err);res.status(500).json({error:'Internal server error'});
 });
+export default app;
 const port=Number(process.env.PORT)||5000;
-if(!process.env.MONGODB_URI){console.error('Set MONGODB_URI in server/.env');process.exit(1)}
-mongoose.connect(process.env.MONGODB_URI).then(()=>app.listen(port,()=>console.log(`ATS API listening on ${port}`))).catch(err=>{console.error('MongoDB connection failed:',err.message);process.exit(1)});
+if(!process.env.VERCEL){
+ if(!process.env.MONGODB_URI){console.error('Set MONGODB_URI in server/.env');process.exit(1)}
+ mongoose.connect(process.env.MONGODB_URI).then(()=>app.listen(port,()=>console.log('ATS API listening on '+port))).catch(err=>{console.error('MongoDB connection failed:',err.message);process.exit(1)});
+}
