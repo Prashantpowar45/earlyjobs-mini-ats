@@ -12,6 +12,7 @@ app.use(helmet());
 app.use(cors({origin:process.env.CLIENT_ORIGIN?.split(',')||'http://localhost:5173'}));
 app.use(express.json({limit:'100kb'}));
 let connectionPromise;
+app.get('/api/health',(_req,res)=>res.json({status:'ok'}));
 app.use('/api',async(req,res,next)=>{
  if(!process.env.MONGODB_URI)return res.status(503).json({error:'MONGODB_URI not configured'});
  if(mongoose.connection.readyState===1)return next();
@@ -21,7 +22,6 @@ app.use('/api',async(req,res,next)=>{
 app.use('/api',rateLimit({windowMs:15*60*1000,limit:300,standardHeaders:'draft-7',legacyHeaders:false}));
 const safe=(handler)=>(req,res,next)=>Promise.resolve(handler(req,res,next)).catch(next);
 const idOk=id=>mongoose.isValidObjectId(id);
-app.get('/api/health',(_req,res)=>res.json({status:'ok'}));
 app.get('/api/candidates',safe(async(req,res)=>{
  const {search='',stage='',page='1',limit='10',sort='newest'}=req.query;
  const filter={};
