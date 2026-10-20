@@ -1,0 +1,28 @@
+name: CI — Test and Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install server dependencies
+        run: npm install --prefix server --no-audit --no-fund
+      - name: Run validation tests
+        run: npm test --prefix server
+      - name: Check backend syntax
+        run: |
+          node --check server/src/index.js
+          node --check server/src/model.js
+          node --check server/src/validation.js
+          node --check server/src/seed.js
+      - name: Install frontend dependencies
+        run: npm install --prefix client --no-audit --no-fund
+      - name: Build frontend
+        run: npm run build --prefix client
